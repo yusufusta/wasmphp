@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wasmphp</title>
+    <link rel="stylesheet" href="https://codemirror.net/lib/codemirror.css" />
+    <script src="https://codemirror.net/lib/codemirror.js"></script>
+    <script src="https://codemirror.net/addon/edit/matchbrackets.js"></script>
+    <script src="https://codemirror.net/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="https://codemirror.net/mode/xml/xml.js"></script>
+    <script src="https://codemirror.net/mode/javascript/javascript.js"></script>
+    <script src="https://codemirror.net/mode/css/css.js"></script>
+    <script src="https://codemirror.net/mode/clike/clike.js"></script>
+    <script src="https://codemirror.net/mode/php/php.js"></script>
+    <style>
+      .page {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+      }
+
+      .item {
+          flex: 1;
+      }
+
+      .top {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        margin: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+        <h1>wasmphp</h1>
+        <button disabled style="width: 100px" id="run">Run</button>
+    </div>
+    <h1 id="loading">Loading...</h1>
+    <div class="page">
+      <div class="item" id="editor"></div>
+      <iframe style="display: none;" class="item" sandbox="allow-forms allow-scripts allow-same-origin allow-modals allow-popups"
+                id="output"></iframe>
+    </div>
+    <script type="text/javascript" src="/php.js"></script>
+    <script type="text/javascript">
+      window.onload = function () {
+        window.output = document.getElementById('output').contentWindow.document;
+        window.run = document.getElementById('run');
+        window.output_base = document.getElementById('output');
+
+        const _ = function () {
+          window.run.disabled = false
+          window.output_base.style.display = 'block';
+          window.output.write("Waiting for input...");
+          window.output.close();
+
+          CodeMirror(document.querySelector("#editor"), {
+            lineNumbers: true,
+            matchBrackets: true,
+            mode: "application/x-httpd-php",
+            indentUnit: 4,
+            indentWithTabs: true,
+            startOpen: true,
+            value: "<?php phpinfo();"
+          });
+
+          window.run.onclick = function () {
+            window.output.close();
+            window.run.innerHTML = "Running...";
+            const editor = document.querySelector("#editor > div");
+            var code = editor.CodeMirror.getValue();
+            code = code.replace(/^\s*<\?php/, "");
+            code = code + "\necho PHP_EOL;";
+
+            window.php.ccall('php_eval', 'number', ["string"], [code]);
+          };
+        };
+
+        const options = {
+          print: function (text) {
+            if (arguments.length > 1) {
+                text = Array.prototype.slice.call(arguments).join(' ');
+            }
+
+            window.output.write(text);
+          },
+        };
+        window.php = new PHP(options);
+        window.php.then((php) => {
+          window.php = php;
+          document.getElementById("loading").style.display = "none";
+          _();
+        });
+      };
+    </script>
+  </body>
+</html>
